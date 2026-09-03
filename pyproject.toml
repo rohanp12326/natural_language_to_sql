@@ -1,0 +1,116 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "nl2sql"
+version = "0.1.0"
+description = "RAG-powered AI agent that translates natural language into SQL for live database querying."
+requires-python = ">=3.12"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: OS Independent",
+]
+authors = [
+    {name = "Rohan Patil", email = "rohanp12326@gmail.com"},
+]
+readme = "README.md"
+keywords = [
+
+]
+dependencies = [
+    "chromadb>=1.0.20",
+    "fastapi>=0.115.5",
+    "httpx>=0.28.1",
+    "langchain>=0.3.26",
+    "langchain-community>=0.3.27",
+    "langchain-openai>=0.3.27",
+    "langchain-postgres>=0.0.15",
+    "langgraph>=0.5.1",
+    "langgraph-checkpoint-postgres>=2.0.21",
+    "llama-index-core>=0.13.3",
+    "llama-index-embeddings-openai>=0.5.0",
+    "llama-index-llms-openai>=0.5.4",
+    "loguru>=0.7.3",
+    "nbformat>=5.10.4",
+    "pandas>=2.3.0",
+    "psycopg[binary]>=3.2.9",
+    "sqlparse>=0.5.3",
+    "tabulate>=0.9.0",
+    "uvicorn>=0.34.0",
+    "vanna[postgres]>=0.7.9",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.hatch.metadata]
+allow-direct-references = false
+
+[tool.hatch.build]
+packages = ["nl2sql"]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.2.0",
+    "pytest-cov>=6.1.1",
+    "pytest>=8.3.4",
+    "ruff>=0.9.7",
+]
+notebook = [
+    "ipykernel>=6.29.5",
+]
+
+[tool.uv]
+default-groups = ["dev", "notebook"]
+
+[tool.ruff]
+line-length = 88   # Like Black, use 88 characters per line.
+indent-width = 4   # Like Black, use 4 spaces per indentation level.
+# exclude = ["*.ipynb"] # Exclude Jupyter notebooks from linting.
+
+[tool.ruff.lint]
+select = [
+    "F",      # Pyflakes
+    "E", "W", # pycodestyle
+    "I",      # isort
+    "N",      # pep8-naming
+    "Q",      # flake8-quotes
+    "UP",     # pyupgrade
+    "D",      # pydocstyle
+    "RUF",    # Ruff-specific rules
+    "B",      # flake8-bugbear
+    # "T20",    # flake8-print
+    "C90",    # mccabe (complex structures)
+    "SIM",    # flake8-simplify
+    "ANN",    # flake8-annotations
+    "TID",    # flake8-tidy-imports
+]
+ignore = [] # ignore specific rules here
+
+# Allow fix for all enabled rules (when `--fix`) is provided.
+fixable = ["ALL"]
+unfixable = []
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+force-single-line = false
+
+[tool.ruff.format]
+# Like Black, use double quotes for strings.
+quote-style = "double"
+
+# Like Black, indent with spaces, rather than tabs.
+indent-style = "space"
+
+# Like Black, respect magic trailing commas.
+skip-magic-trailing-comma = false
+
+# Like Black, automatically detect the appropriate line ending.
+line-ending = "auto"
