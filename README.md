@@ -8,7 +8,7 @@ A fully working solution you can adapt to your own datasets:
 
 ✅ **LangGraph Orchestration**: Using the latest API references for robust agent workflows  
 ✅ **Smart Routing**: Intelligent switching between SQL and ReAct-style chat agents  
-✅ **RAG with PGVector**: Retrieve few-shot SQL examples based on user queries  
+✅ **RAG with PGVector**: Retrieve few-shot SQL examples based on user aqueries  
 ✅ **Comprehensive Guardrails**: Validation and human-in-the-loop approval  
 ✅ **Session Memory**: Token/cost tracking with LangSmith integration  
 ✅ **End-to-End Flow**: From schema ingestion to query execution on live databases  
@@ -69,14 +69,6 @@ cp .env.example .env
 
 - [Prerequisites](docs/prerequisites.md)
 - [n8n Integration Guide](docs/n8n.md)
-
-## 👤 Author
-
-- **Rohan Patil** - [GitHub Profile](https://github.com/rohanp12326)
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
