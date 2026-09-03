@@ -1,10 +1,10 @@
 """This module contains the tools for the chat agent."""
 
-from langchain.chat_models import init_chat_model
 from langchain_core.prompts import ChatPromptTemplate
 
 from nl2sql.knowledge_base.data_dictionary import DataDictionary
 from nl2sql.knowledge_base.vector_store import VectorStore
+from nl2sql.llm import get_chat_model
 
 
 class ChatAgentTools:
@@ -90,9 +90,7 @@ class ChatAgentTools:
             explainer_prompt_template = ChatPromptTemplate.from_template(
                 explainer_prompt
             )
-            llm = init_chat_model(
-                model="gpt-4.1-mini", model_provider="openai", temperature=0
-            )
+            llm = get_chat_model(model_type="fast", temperature=0)
 
             explainer_chain = explainer_prompt_template | llm
 

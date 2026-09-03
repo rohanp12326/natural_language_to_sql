@@ -25,9 +25,9 @@ The system intelligently routes user queries through specialized agents:
 
 ## 🛠️ Tech Stack
 
-| Layer         | Tools & Libraries                           |
-|---------------|---------------------------------------------|
-| AI / Agents   | `LangGraph`, `LangChain`, `OpenAI`          |
+| Layer         | Tools & Libraries                                        |
+|---------------|----------------------------------------------------------|
+| AI / Agents   | `LangGraph`, `LangChain`, `Z.ai GLM` (`GLM-4-Flash`, `GLM-4-Air`) |
 | Retrieval     | `PGVector`, SQL context + query embeddings  |
 | Database      | `PostgreSQL`, `SQLAlchemy`, `psycopg`       |
 | Dev Tooling   | `uv`, `Ruff`, Python 3.12+                  |
