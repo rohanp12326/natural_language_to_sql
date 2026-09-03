@@ -4,12 +4,12 @@ import hashlib
 
 from langchain.embeddings.base import Embeddings
 from langchain.schema import Document
-from langchain_openai.embeddings import OpenAIEmbeddings
 from langchain_postgres import PGVector
 
 from nl2sql.database.base import SQLBaseConnector
 from nl2sql.knowledge_base.data_dictionary import DataDictionary
 from nl2sql.knowledge_base.sql_examples import SQLExample
+from nl2sql.llm import get_embeddings
 
 
 class VectorStore:
@@ -24,7 +24,7 @@ class VectorStore:
         """Initialize vector store."""
         self.vectorstore = PGVector(
             connection=db_connector.engine,
-            embeddings=embeddings or OpenAIEmbeddings(model="text-embedding-3-small"),
+            embeddings=embeddings or get_embeddings(),
             collection_name=collection_name,
         )
 

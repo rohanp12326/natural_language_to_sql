@@ -3,7 +3,6 @@
 from typing import Literal
 
 import pandas as pd
-from langchain.chat_models import init_chat_model
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.types import interrupt
 from loguru import logger
@@ -21,6 +20,7 @@ from nl2sql.database.postgresql import PostgreSQLConnector
 from nl2sql.knowledge_base.data_dictionary import DataDictionary
 from nl2sql.knowledge_base.sql_examples import SQLExample
 from nl2sql.knowledge_base.vector_store import VectorStore
+from nl2sql.llm import get_chat_model
 
 # ===============================
 # Prompts & Knowledge Base
@@ -49,8 +49,8 @@ def intent_classifier(state: State) -> dict:
     logger.debug(f"Chat history:\n{chat_history}")
     logger.debug(f"Last message: {user_query}")
 
-    # Classify user intent using LLM
-    llm = init_chat_model(model="gpt-4.1-mini", model_provider="openai", temperature=0)
+    # Classify user intent using LLM (cost-effective Z.ai GLM model)
+    llm = get_chat_model(model_type="fast", temperature=0)
     router_llm_chain = intent_classifier_prompt | llm
 
     response = router_llm_chain.invoke(
@@ -116,8 +116,8 @@ Be conversational and helpful, and guide users toward useful database queries.""
         ]
     )
 
-    # Initialize the LLM
-    llm = init_chat_model(model="gpt-4.1-mini", model_provider="openai", temperature=0)
+    # Initialize the LLM (cost-effective Z.ai GLM model)
+    llm = get_chat_model(model_type="fast", temperature=0)
 
     # Create the agent
     agent = create_openai_tools_agent(llm, tools, prompt)
@@ -159,9 +159,9 @@ def sql_generator(state: State, vector_store: VectorStore) -> dict:
     logger.debug(f"Retrieved {len(retrieved_docs)} docs")
     sql_examples_context = "\n\n".join([doc.page_content for doc in retrieved_docs])
 
-    # Initialize LLM
-    llm = init_chat_model(
-        model="gpt-4.1-mini", model_provider="openai", temperature=0
+    # Initialize LLM (cost-effective Z.ai GLM model)
+    llm = get_chat_model(
+        model_type="fast", temperature=0
     ).with_structured_output(method="json_mode")  # returns dict directly
 
     # Create SQL generation chain
@@ -228,11 +228,11 @@ def sql_syntax_validator(state: State, db_connector: PostgreSQLConnector) -> dic
         logger.debug(f"Current query: {current_query}")
         logger.debug(f"Error: {validation_result['error']}")
 
-        # Use LLM to fix the error
+        # Use LLM to fix the error (cost-effective Z.ai GLM reasoning model)
         sql_syntax_fixer_prompt = load_chat_prompt_template(
             target_prompt="sql_syntax_fixer"
         )
-        llm = init_chat_model(model="gpt-4.1", model_provider="openai", temperature=0)
+        llm = get_chat_model(model_type="powerful", temperature=0)
         llm_chain = sql_syntax_fixer_prompt | llm
         fixed_query = llm_chain.invoke(
             {
@@ -340,8 +340,8 @@ def sql_result_analyzer(state: State) -> dict:
     # Load the result interpretation prompt
     result_analyzer_prompt = load_chat_prompt_template(target_prompt="result_analyzer")
 
-    # Initialize LLM
-    llm = init_chat_model(model="gpt-4.1", model_provider="openai", temperature=0.1)
+    # Initialize LLM (cost-effective Z.ai GLM reasoning model)
+    llm = get_chat_model(model_type="powerful", temperature=0.1)
 
     # Create the interpretation chain
     llm_chain = result_analyzer_prompt | llm
