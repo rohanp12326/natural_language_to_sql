@@ -1,4 +1,9 @@
-"""Health check routes for the NL2SQL API."""
+"""Health check and diagnostics routes for the NL2SQL API.
+
+Provides liveness and readiness probes:
+  - Docker / Kubernetes container orchestrators can ping `/health` to verify service readiness.
+  - Verifies that PostgreSQL is reachable and executing queries before routing traffic.
+"""
 
 from fastapi import APIRouter
 from loguru import logger
@@ -12,16 +17,21 @@ router = APIRouter()
 
 @router.get("/health", response_model=HealthResponse)
 async def health_check() -> HealthResponse:
-    """Health check endpoint that verifies database connectivity."""
+    """Liveness probe testing API readiness and PostgreSQL connectivity.
+    
+    Executes a minimal test query (`SELECT 1`) against the PostgreSQL database.
+    If the connection succeeds and returns 1, the service is deemed healthy.
+    """
     try:
-        # Test database connection
+        # Connect to PostgreSQL using database configuration
         db_connector = PostgreSQLConnector(config_path="configs/database.yml")
 
-        # Test basic connectivity with a simple query
+        # Execute lightweight ping query
         with db_connector.engine.connect() as conn:
             result = conn.execute(text("SELECT 1 as test"))
             test_value = result.fetchone()[0]
 
+        # Verify expected response
         if test_value == 1:
             logger.info("✅ Health check passed - database connected")
             return HealthResponse(
@@ -38,9 +48,11 @@ async def health_check() -> HealthResponse:
             )
 
     except Exception as e:
+        # Catch connection timeouts, authentication failures, or network issues
         logger.error(f"❌ Health check failed: {e}")
         return HealthResponse(
             status="unhealthy",
             database_connected=False,
             message=f"Database connection error: {e!s}",
         )
+
