@@ -1,7 +1,13 @@
-"""Database schema inspection and documentation tools.
+"""Database schema inspection, reflection, and documentation tools.
 
-This module extracts and documents database schema information, including
-table structures, columns, and relationships using SQLAlchemy's inspector.
+This module automates the generation of a comprehensive 'Data Dictionary' from PostgreSQL:
+  1. Reflection: Uses SQLAlchemy's `Inspector` to interrogate live database metadata
+     (tables, columns, types, primary keys, foreign keys, and column comments).
+  2. Data Modeling: Structures reflected metadata into Pydantic models:
+     `ColumnInfo` -> `TableInfo` -> `SchemaInfo` -> `DatabaseInfo` -> `DataDictionary`.
+  3. Prompt Context Formatting: Generates compact Markdown strings optimized for LLM prompts,
+     providing foreign key join paths and column definitions.
+  4. Persistence: Saves/loads data dictionary to/from YAML (`knowledge/data_dictionary.yml`).
 """
 
 from pathlib import Path
@@ -12,7 +18,16 @@ from sqlalchemy.engine.reflection import Inspector
 
 
 class ColumnInfo(BaseModel):
-    """Information about a database column."""
+    """Metadata representing a single database column.
+    
+    Attributes:
+        name: Column identifier.
+        description: Table comment / docstring from the database catalog.
+        type: SQL datatype string (e.g. VARCHAR(255), INTEGER, TIMESTAMP).
+        is_primary_key: True if column is part of the table's primary key constraint.
+        is_nullable: True if column permits NULL values.
+        foreign_keys: References to destination schema, table, and columns.
+    """
 
     name: str
     description: str
@@ -23,9 +38,10 @@ class ColumnInfo(BaseModel):
 
     @staticmethod
     def _extract_type(column: dict) -> str:
-        """Extract the type of a column from the database."""
+        """Normalize database column type representation."""
         column_type = str(column["type"])
         return column_type if column_type != "NULL" else "USER-DEFINED"
+
 
 
 class TableInfo(BaseModel):
@@ -206,7 +222,11 @@ class DatabaseInfo(BaseModel):
 
 
 class DataDictionary(BaseModel):
-    """Main data dictionary containing all database information."""
+    """Top-level data catalog encapsulating all database structures and documentation.
+    
+    Acts as the single repository of schema knowledge used across prompt engineering,
+    vector embedding, and human explanation tools.
+    """
 
     databases: dict[str, DatabaseInfo]
 
@@ -217,7 +237,17 @@ class DataDictionary(BaseModel):
         database_schema: dict,
         handle_missing_pk_descriptions: bool = True,
     ) -> "DataDictionary":
-        """Create DataDictionary from SQLAlchemy inspector."""
+        """Introspect a live database using SQLAlchemy reflection to construct a full DataDictionary.
+
+        Args:
+            inspector: SQLAlchemy schema Inspector connected to target database.
+            database_schema: Schema configuration mapping (e.g., from configs/schema.yml).
+            handle_missing_pk_descriptions: If True, automatically populates empty primary key
+                                            descriptions with 'Primary Key'.
+
+        Returns:
+            DataDictionary: Populated hierarchical model of databases, schemas, and tables.
+        """
         databases = {}
 
         for database_name, schemas in database_schema.items():
@@ -227,6 +257,7 @@ class DataDictionary(BaseModel):
                 table_dict = {}
 
                 for table_name in tables:
+                    # Introspect table columns, primary keys, and foreign keys
                     table_info = TableInfo.from_inspector(
                         inspector, table_name, schema_name
                     )
@@ -247,23 +278,36 @@ class DataDictionary(BaseModel):
         return cls(databases=databases)
 
     def format_context(self) -> str:
-        """Format all schema information as a string for context retrieval."""
+        """Format the entire database catalog into a Markdown text block for LLM prompts.
+
+        Returns:
+            str: Multi-line string with TABLE, DESCRIPTION, PRIMARY KEYS, FOREIGN KEYS, and COLUMNS.
+        """
         context = ""
         for database_info in self.databases.values():
             context += database_info.format_context()
         return context
 
     def save(self, output_path: Path | str) -> Path:
-        """Save data dictionary to a YAML file."""
+        """Serialize and persist the data dictionary to a readable YAML file.
+
+        Args:
+            output_path: Target file path (e.g. 'knowledge/data_dictionary.yml').
+
+        Returns:
+            Path: Path to saved YAML file.
+        """
         if isinstance(output_path, str):
             output_path = Path(output_path)
 
+        # Ensure destination directory exists
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         with open(output_path, "w") as f:
             yaml.dump(self.model_dump(), f, default_flow_style=False, sort_keys=False)
 
         return output_path
+
 
     @classmethod
     def load(

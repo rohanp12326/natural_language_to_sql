@@ -1,4 +1,11 @@
-"""This module contains the tools for the chat agent."""
+"""Chat agent toolset for conversational assistance and knowledge retrieval.
+
+In a ReAct (Reason + Act) architecture, an LLM agent uses 'Tools' to perform actions
+and gather facts beyond its internal weights. This module provides three core tools:
+  1. `get_similar_queries`: Performs vector similarity search over historical SQL examples.
+  2. `explain_query`: Generates an educational, step-by-step breakdown of any SQL query.
+  3. `get_schema_info`: Retrieves schema, columns, types, and foreign keys from the data dictionary.
+"""
 
 from langchain_core.prompts import ChatPromptTemplate
 
@@ -8,17 +15,22 @@ from nl2sql.llm import get_chat_model
 
 
 class ChatAgentTools:
-    """Container for chat agent tools."""
+    """Tool provider for the conversational Chat Agent."""
 
     def __init__(self, vector_store: VectorStore) -> None:
-        """Initialize with a vector store instance."""
+        """Initialize tools with access to the vector store and data dictionary.
+        
+        Args:
+            vector_store: VectorStore connected to PostgreSQL for similarity searches.
+        """
         self.vector_store = vector_store
-        # Load data dictionary for schema context
+        
+        # Load data dictionary to supply full schema context to explanation tools
         try:
             self.data_dictionary = DataDictionary.load()
             self.schema_context = self.data_dictionary.format_context()
         except Exception as e:
-            # Fallback to a basic schema description
+            # Fallback schema description in case the YAML file is not yet generated
             self.schema_context = """Database contains tables for ecommerce data including:
             - customers: customer information and locations
             - orders: order details and status
@@ -29,15 +41,25 @@ class ChatAgentTools:
             print(f"Warning: Could not load data dictionary: {e}")
 
     def get_similar_queries(self, query: str, k: int = 3) -> str:
-        """Retrieve K similar queries from a knowledge base of SQL examples.
+        """Retrieve K similar SQL query examples from the vector knowledge base.
+
+        How it works:
+          Converts the user's natural language question into an embedding and runs
+          a cosine-distance similarity search in PostgreSQL (PGVector), filtering
+          only documents tagged with metadata `type: "example"`.
 
         Args:
-            query (str): The user's query to find similar examples for.
-            k (int): The number of similar queries to retrieve. Defaults to 3.
+            query: The user's question (e.g. "Find top selling products").
+            k: The number of similar examples to retrieve (default: 3).
+
+        Returns:
+            str: Markdown-formatted list of matching SQL queries and titles.
         """
         try:
+            # Enforce a reasonable upper bound to protect prompt context
             limit = min(k, 5)
-            # Use the retriever interface instead of direct similarity_search
+            
+            # Create a retriever filtered specifically to SQL examples
             retriever = self.vector_store.as_retriever(
                 search_kwargs={"k": limit, "filter": {"type": "example"}}
             )
@@ -46,7 +68,7 @@ class ChatAgentTools:
             if not docs:
                 return "I couldn't find any similar queries in the knowledge base."
 
-            # Format the response
+            # Format matching documents into clear Markdown blocks
             response_lines = []
             if k > 10:
                 response_lines.append(
@@ -70,10 +92,18 @@ class ChatAgentTools:
             return f"Error retrieving similar queries: {e!s}"
 
     def explain_query(self, sql_query: str) -> str:
-        """Explain a SQL query based on the database schema.
+        """Provide a plain-English, step-by-step breakdown of a SQL query.
+        
+        How it works:
+          Feeds the query together with the database schema context into a fast LLM.
+          The schema context enables the model to explain what specific column names
+          or foreign key joins actually mean in the business domain.
 
         Args:
-            sql_query (str): The SQL query to be explained.
+            sql_query: The SQL statement to explain.
+
+        Returns:
+            str: Natural language explanation of the query's tables, filters, and aggregations.
         """
         try:
             explainer_prompt = """You are a helpful SQL expert. Explain the following SQL query in simple terms,
@@ -90,6 +120,7 @@ class ChatAgentTools:
             explainer_prompt_template = ChatPromptTemplate.from_template(
                 explainer_prompt
             )
+            # Use deterministic temperature for factual explanation
             llm = get_chat_model(model_type="fast", temperature=0)
 
             explainer_chain = explainer_prompt_template | llm
@@ -104,16 +135,21 @@ class ChatAgentTools:
             return f"Error explaining query: {e!s}"
 
     def get_schema_info(self, table_name: str = "") -> str:
-        """Get information about database schema or specific table.
+        """Inspect the database schema, either for a specific table or the whole database.
 
         Args:
-            table_name (str): Optional table name to get specific information.
+            table_name: Optional name of the table to look up (e.g. "orders").
+                        If empty, returns a general overview of all tables.
+
+        Returns:
+            str: Description of columns, primary keys, and relationships.
         """
         try:
+            # If no specific table was requested, return overview of all tables
             if not table_name:
                 return f"Here's an overview of the database schema:\n\n{self.schema_context[:1000]}..."  # noqa: E501
 
-            # Look for specific table in schema context
+            # Search the schema text for the specific table section
             if table_name.lower() in self.schema_context.lower():
                 lines = self.schema_context.split("\n")
                 table_info = []
@@ -126,6 +162,7 @@ class ChatAgentTools:
                     ):
                         capturing = True
                     elif capturing and line.startswith("TABLE:"):
+                        # Stop capturing when reaching the next table definition
                         break
 
                     if capturing:
@@ -140,3 +177,4 @@ class ChatAgentTools:
 
         except Exception as e:
             return f"Error retrieving schema information: {e!s}"
+

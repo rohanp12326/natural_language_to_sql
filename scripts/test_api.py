@@ -1,38 +1,49 @@
 #!/usr/bin/env python3
-"""Simple API testing script for the NL2SQL API."""
+"""Automated Test Suite for Validating the NL2SQL FastAPI Endpoints.
+
+This test runner executes asynchronous HTTP integration tests against a running
+API instance (default: http://localhost:8000):
+  1. `test_health`: Validates `/health` service status and PostgreSQL connectivity.
+  2. `test_root`: Validates discovery route `/` metadata and links.
+  3. `test_chat`: Validates conversational intent routing through `chat_agent`.
+  4. `test_chat_sql`: Validates SQL generation intent routing through `sql_generator`.
+"""
 
 import asyncio
 import json
 
 import httpx
 
+# Target backend API base URL
+BASE_URL = "http://localhost:8000"
+
 
 async def test_health() -> None:
-    """Test the health endpoint."""
+    """Validate `/health` endpoint returns HTTP 200 and confirms database connectivity."""
     print("🔍 Testing Health Endpoint...")
     async with httpx.AsyncClient() as client:
-        response = await client.get("http://localhost:8000/health")
+        response = await client.get(f"{BASE_URL}/health")
         print(f"Status: {response.status_code}")
         print(f"Response: {json.dumps(response.json(), indent=2)}")
         print()
 
 
 async def test_root() -> None:
-    """Test the root endpoint."""
+    """Validate root endpoint `/` returns discovery documentation links."""
     print("🔍 Testing Root Endpoint...")
     async with httpx.AsyncClient() as client:
-        response = await client.get("http://localhost:8000/")
+        response = await client.get(f"{BASE_URL}/")
         print(f"Status: {response.status_code}")
         print(f"Response: {json.dumps(response.json(), indent=2)}")
         print()
 
 
 async def test_chat() -> None:
-    """Test the chat endpoint."""
-    print("🔍 Testing Chat Endpoint...")
+    """Validate conversational chat query routes to `chat_agent`."""
+    print("🔍 Testing Chat Endpoint (Conversational Greeting)...")
     async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.post(
-            "http://localhost:8000/chat/",
+            f"{BASE_URL}/chat/",
             json={"message": "Hello! How are you?", "session_id": "test_123"},
         )
         print(f"Status: {response.status_code}")
@@ -47,11 +58,11 @@ async def test_chat() -> None:
 
 
 async def test_chat_sql() -> None:
-    """Test the chat endpoint with SQL query."""
+    """Validate database query routes to `sql_generator` and initiates the SQL pipeline."""
     print("🔍 Testing Chat Endpoint with SQL Query...")
     async with httpx.AsyncClient(timeout=60.0) as client:
         response = await client.post(
-            "http://localhost:8000/chat/",
+            f"{BASE_URL}/chat/",
             json={
                 "message": "Show me the first 5 customers",
                 "session_id": "test_sql_123",
@@ -69,7 +80,7 @@ async def test_chat_sql() -> None:
 
 
 async def main() -> None:
-    """Run all tests."""
+    """Execute all API test cases sequentially."""
     print("🧪 NL2SQL API Test Suite")
     print("=" * 50)
 
@@ -85,3 +96,4 @@ async def main() -> None:
 
 if __name__ == "__main__":
     asyncio.run(main())
+
