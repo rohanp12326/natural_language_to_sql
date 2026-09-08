@@ -65,6 +65,28 @@ cp .env.example .env
 # Edit .env with your API keys and database credentials
 ```
 
+### 🖥️ Running the Application
+
+1. **Start the FastAPI Backend:**
+   ```bash
+   python -m nl2sql.api.main
+   ```
+   The API will start at `http://localhost:8000` (docs at `http://localhost:8000/docs`).
+
+2. **Launch the Streamlit Web Frontend:**
+   ```bash
+   streamlit run streamlit_app.py
+   # Or using the launcher script:
+   python scripts/streamlit_chat.py
+   ```
+   The Streamlit interface opens at `http://localhost:8501` featuring interactive chat, one-click query approvals, tabular result exploration, and CSV downloads.
+
+3. **Or Run the Terminal Chat Client:**
+   ```bash
+   python scripts/terminal_chat.py
+   ```
+
+
 ## 📚 Documentation
 
 - [Prerequisites](docs/prerequisites.md)

@@ -7,12 +7,24 @@ This module sets up the REST API layer:
   - Configures startup and shutdown event hooks.
 """
 
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 
 from nl2sql.api.routes.chat import router as chat_router
 from nl2sql.api.routes.health import router as health_router
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
+    """Lifespan context manager for startup and shutdown hooks."""
+    logger.info("🚀 NL2SQL Agent API starting up...")
+    yield
+    logger.info("🛑 NL2SQL Agent API shutting down...")
+
 
 # ------------------------------------------------------------------------------
 # FastAPI Application Initialization
@@ -23,6 +35,7 @@ app = FastAPI(
     version="0.1.0",
     docs_url="/docs",    # Interactive Swagger UI endpoint
     redoc_url="/redoc",  # ReDoc documentation endpoint
+    lifespan=lifespan,
 )
 
 # ------------------------------------------------------------------------------
@@ -50,7 +63,7 @@ app.include_router(chat_router, prefix="/chat", tags=["Chat"])
 
 @app.get("/")
 async def root() -> dict[str, str]:
-    """Root discovery endpoint providing navigation links to API documentation and services."""
+    """Root discovery endpoint providing links to API documentation and services."""
     return {
         "message": "Welcome to NL2SQL Agent API",
         "docs": "/docs",
@@ -59,16 +72,6 @@ async def root() -> dict[str, str]:
     }
 
 
-@app.on_event("startup")
-async def startup_event() -> None:
-    """Invoked when the web server boots up."""
-    logger.info("🚀 NL2SQL Agent API starting up...")
-
-
-@app.on_event("shutdown")
-async def shutdown_event() -> None:
-    """Invoked when the web server receives a termination signal."""
-    logger.info("🛑 NL2SQL Agent API shutting down...")
 
 
 # Allows direct execution with `python -m nl2sql.api.main`

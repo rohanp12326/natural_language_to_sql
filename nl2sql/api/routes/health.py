@@ -5,6 +5,8 @@ Provides liveness and readiness probes:
   - Verifies that PostgreSQL is reachable and executing queries before routing traffic.
 """
 
+import asyncio
+
 from fastapi import APIRouter
 from loguru import logger
 from sqlalchemy import text
@@ -14,25 +16,37 @@ from nl2sql.database.postgresql import PostgreSQLConnector
 
 router = APIRouter()
 
+_health_connector: PostgreSQLConnector | None = None
+
+
+def get_health_connector() -> PostgreSQLConnector:
+    """Get or create singleton PostgreSQL connector for health checks."""
+    global _health_connector
+    if _health_connector is None:
+        _health_connector = PostgreSQLConnector(config_path="configs/database.yml")
+    return _health_connector
+
+
+def _ping_database() -> bool:
+    """Execute lightweight ping query against PostgreSQL."""
+    connector = get_health_connector()
+    with connector.engine.connect() as conn:
+        result = conn.execute(text("SELECT 1 as test"))
+        test_value = result.fetchone()[0]
+        return test_value == 1
+
 
 @router.get("/health", response_model=HealthResponse)
 async def health_check() -> HealthResponse:
     """Liveness probe testing API readiness and PostgreSQL connectivity.
-    
+
     Executes a minimal test query (`SELECT 1`) against the PostgreSQL database.
     If the connection succeeds and returns 1, the service is deemed healthy.
     """
     try:
-        # Connect to PostgreSQL using database configuration
-        db_connector = PostgreSQLConnector(config_path="configs/database.yml")
+        is_connected = await asyncio.to_thread(_ping_database)
 
-        # Execute lightweight ping query
-        with db_connector.engine.connect() as conn:
-            result = conn.execute(text("SELECT 1 as test"))
-            test_value = result.fetchone()[0]
-
-        # Verify expected response
-        if test_value == 1:
+        if is_connected:
             logger.info("✅ Health check passed - database connected")
             return HealthResponse(
                 status="healthy",
@@ -55,4 +69,3 @@ async def health_check() -> HealthResponse:
             database_connected=False,
             message=f"Database connection error: {e!s}",
         )
-

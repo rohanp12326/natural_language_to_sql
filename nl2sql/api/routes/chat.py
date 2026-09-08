@@ -13,6 +13,7 @@ This is the central execution bridge connecting HTTP client requests to LangGrap
        and resumes execution seamlessly using `Command(resume=request.message)`.
 """
 
+import asyncio
 import uuid
 from datetime import datetime
 
@@ -113,20 +114,24 @@ async def chat(request: ChatRequest) -> ChatResponse:
         # Check for Interrupted State (HITL Resumption)
         # ----------------------------------------------------------------------
         # Inspect checkpoint storage for any pending interrupted node in this thread
-        existing_state = _graph.get_state(config)
+        existing_state = await asyncio.to_thread(_graph.get_state, config)
         if existing_state.next and request.message.lower() in ["yes", "no", "y", "n"]:
             # The previous graph run paused at `interrupt()` and the user is now replying
             logger.debug("🔄 Resuming interrupted graph with user feedback...")
             from langgraph.types import Command
 
             # Resume execution passing the user's reply string directly to `interrupt()`
-            result = _graph.invoke(Command(resume=request.message), config=config)
+            result = await asyncio.to_thread(
+                _graph.invoke, Command(resume=request.message), config=config
+            )
         else:
             # New turn: seed initial state with the new user message
             initial_state = {"messages": [user_message]}
 
             logger.debug("🔄 Executing agent graph...")
-            result = _graph.invoke(initial_state, config=config)
+            result = await asyncio.to_thread(
+                _graph.invoke, initial_state, config=config
+            )
 
         # ----------------------------------------------------------------------
         # Handle Graph Output (Interrupted vs Completed)
@@ -160,16 +165,18 @@ async def chat(request: ChatRequest) -> ChatResponse:
 
         logger.info(f"✅ Chat request completed for session: {session_id}")
 
-        # Return structured response with detailed pipeline metadata for frontend display
+        # Return structured response with pipeline metadata for frontend display
         return ChatResponse(
             message=last_message,
             session_id=session_id,
             metadata={
                 "user_intent": result.get("user_intent"),
                 "sql_query": result.get("sql_query"),
+                "sql_explanation": result.get("sql_explanation"),
                 "sql_safety_status": result.get("sql_safety_status"),
                 "sql_syntax_status": result.get("sql_syntax_status"),
                 "sql_execution_status": result.get("sql_execution_status"),
+                "sql_execution_result": result.get("sql_execution_result"),
             },
         )
 
@@ -178,4 +185,3 @@ async def chat(request: ChatRequest) -> ChatResponse:
         raise HTTPException(
             status_code=500, detail=f"Chat processing error: {e!s}"
         ) from e
-
